@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
+import MapView from './MapView';
 import './App.css'
 
 function App() {
@@ -9,10 +10,9 @@ function App() {
       <h1>Hello, Louisville! 👋</h1>
       <p>This is the start of <strong>What Could Lou Do</strong>.</p>
       <p>We're building a place to imagine the future of our shared spaces.</p>
+      <MapView /> {/* Add this line to render the map */}
     </div>
   );
 }
-
-
 
 export default App
