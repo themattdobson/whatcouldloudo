@@ -1,10 +1,11 @@
 // src/MapView.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import IdeaForm from './IdeaForm';
 
 // Fix Leaflet's default icon paths for production builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -23,92 +24,71 @@ function ClickHandler({ onMapClick }) {
   return null;
 }
 
-function MapView() {
-  const [markers, setMarkers] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [formValue, setFormValue] = useState('');
-  const [pendingLatLng, setPendingLatLng] = useState(null);
+function MapView({ ideas, addIdea }) {
+  const [formLatLng, setFormLatLng] = useState(null);
+  const formMarkerRef = useRef(null);
 
-  // Load markers from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('lou-ideas');
-    if (saved) {
-      setMarkers(JSON.parse(saved));
+    if (formLatLng && formMarkerRef.current) {
+      setTimeout(() => {
+        if (formMarkerRef.current) {
+          formMarkerRef.current.openPopup();
+        }
+      }, 0);
     }
-  }, []);
-
-  // Save markers to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('lou-ideas', JSON.stringify(markers));
-  }, [markers]);
+  }, [formLatLng]);
 
   function handleMapClick(latlng) {
-    setPendingLatLng(latlng);
-    setShowModal(true);
+    setFormLatLng(latlng);
   }
 
-  function handleFormSubmit(e) {
-    e.preventDefault();
-    if (formValue && pendingLatLng) {
-      setMarkers([...markers, { latlng: pendingLatLng, idea: formValue }]);
-    }
-    setFormValue('');
-    setPendingLatLng(null);
-    setShowModal(false);
+  function handleFormSubmit(idea) {
+    addIdea({ latlng: formLatLng, ...idea });
+    setFormLatLng(null);
   }
 
-  function handleModalClose() {
-    setShowModal(false);
-    setFormValue('');
-    setPendingLatLng(null);
+  function handleFormCancel() {
+    setFormLatLng(null);
   }
 
   return (
-    <div style={{ position: 'relative' }}>
-      <MapContainer center={[38.235, -85.716]} zoom={13} style={{ height: '500px', width: '100%' }}>
+    <div className="map-container">
+      <MapContainer
+        className="map"
+        center={[38.235, -85.716]}
+        zoom={13}
+      >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        <Marker position={[38.235, -85.716]}>
-          <Popup>Hello from Louisville!</Popup>
-        </Marker>
-        {markers.map((marker, idx) => (
+        {ideas.map((marker, idx) => (
           <Marker key={idx} position={marker.latlng}>
-            <Popup>{marker.idea}</Popup>
+            <Popup>
+              <strong>{marker.title}</strong>
+              <div style={{ marginTop: 4 }}>{marker.desc}</div>
+            </Popup>
           </Marker>
         ))}
+        {formLatLng && (
+          <Marker
+            position={formLatLng}
+            key={JSON.stringify(formLatLng)}
+            ref={formMarkerRef}
+          >
+            <Popup
+              key={JSON.stringify(formLatLng)}
+              closeOnClick={false}
+              closeButton={false}
+              autoClose={false}
+              autoPan={true}
+            >
+              <IdeaForm onSubmit={handleFormSubmit} onCancel={handleFormCancel} />
+            </Popup>
+          </Marker>
+        )}
         <ClickHandler onMapClick={handleMapClick} />
       </MapContainer>
-      {showModal && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <form
-            onSubmit={handleFormSubmit}
-            style={{
-              background: 'white', padding: '2rem', borderRadius: '8px', minWidth: '300px', boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-            }}
-          >
-            <label>
-              What's your idea for this spot?
-              <textarea
-                value={formValue}
-                onChange={e => setFormValue(e.target.value)}
-                rows={3}
-                style={{ width: '100%', marginTop: '0.5rem' }}
-                autoFocus
-              />
-            </label>
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-              <button type="submit">Add Idea</button>
-              <button type="button" onClick={handleModalClose}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
